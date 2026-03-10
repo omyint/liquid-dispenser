@@ -4,19 +4,24 @@ namespace LiquidDispenser.Simulator.Models.Hardware
 {
     public abstract class MotorBase : IMotor
     {
-        private const int MaxDelayMs = 5000; // 5 seconds max
+        private const int MaxDelayMs = 1; // forced to 1ms in order to speed up.
 
         public double CurrentPosition { get; protected set; }
 
         public abstract string Name { get; }
 
-        public virtual async Task HomeAsync()
+        public virtual async Task HomeAsync(CancellationToken cancellationToken = default)
         {
-            await Task.Delay(100); // Simulate homing time
+            cancellationToken.ThrowIfCancellationRequested();
+            await Task.Delay(100, cancellationToken); // Simulate homing time
             CurrentPosition = 0;
         }
 
-        public virtual async Task MoveToAsync(double position, double speed, bool isRelative)
+        public virtual async Task MoveToAsync(
+            double position,
+            double speed,
+            bool isRelative,
+            CancellationToken cancellationToken = default)
         {
             if (speed <= 0)
                 throw new ArgumentException("Speed must be greater than zero", nameof(speed));
@@ -24,6 +29,7 @@ namespace LiquidDispenser.Simulator.Models.Hardware
             double targetPosition = isRelative ? CurrentPosition + position : position;
             double distance = Math.Abs(targetPosition - CurrentPosition);
 
+            cancellationToken.ThrowIfCancellationRequested();
             if (distance == 0)
                 return;
 
@@ -38,7 +44,8 @@ namespace LiquidDispenser.Simulator.Models.Hardware
 
             for (int i = 0; i < steps; i++)
             {
-                await Task.Delay(stepDelayMs);
+                cancellationToken.ThrowIfCancellationRequested();
+                await Task.Delay(stepDelayMs, cancellationToken);
                 CurrentPosition += positionIncrement * direction;
             }
 

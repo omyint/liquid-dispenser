@@ -44,7 +44,7 @@ public class Chip : ILabware
             for (int c = 0; c < Columns; c++)
             {
                 string name = $"R{r}C{c}";
-                Wells[r, c] = new Well(name, initialVolume: 0, capacity: 5.0);
+                Wells[r, c] = new Well(name, initialVolume: 0, capacity: 10.0);
             }
         }
     }

@@ -1,6 +1,6 @@
 namespace LiquidDispenser.Core.Interfaces
 {
-    public interface IStage<TAxis> where TAxis: Enum
+    public interface IStage<TAxis> where TAxis : Enum
     {
         IReadOnlyList<IMotor> Motors { get; }
 
@@ -8,8 +8,12 @@ namespace LiquidDispenser.Core.Interfaces
 
         IMotor GetMotor(TAxis axis);
 
-        Task HomeAsync();
+        Task HomeAsync(CancellationToken cancellationToken = default);
 
-        Task MoveToAsync(Dictionary<TAxis, double> positions, double speed, bool isRelative);
+        Task MoveToAsync(
+            Dictionary<TAxis, double> positions,
+            double speed,
+            bool isRelative,
+            CancellationToken cancellationToken = default);
     }
 }

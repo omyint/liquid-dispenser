@@ -6,6 +6,22 @@ namespace LiquidDispenser.Simulator.Tests;
 public class TransferJobTests
 {
     [TestMethod]
+    public async Task ExecuteTransferAsync_Cancellation_StopsOperation()
+    {
+        var core = new Instrument();
+        var plate = new Plate(PlateFormat.Plate384);
+        var chip = new Chip(ChipFormat.Chip64x64);
+        var job = new TransferJob(plate, 0, 0, chip, 0, 0, 10.0);
+
+        using var cts = new CancellationTokenSource();
+
+        // Start initialize but cancel immediately
+        cts.Cancel();
+
+        await Assert.ThrowsExactlyAsync<OperationCanceledException>(() => core.InitializeAsync(cts.Token));
+    }
+
+    [TestMethod]
     public async Task TransferJob_UpdatesPlateAndChipVolumes_CorrectlyWithPhysicalAlignment()
     {
         // Arrange

@@ -10,11 +10,11 @@ public interface IPipetteHead
 
     double TipPitchY { get; } // Spacing between tips in mm
 
-    Task AspirateAsync(double volumePerTip);
+    Task AspirateAsync(double volumePerTip, CancellationToken cancellationToken = default);
 
-    Task DispenseAsync(double volumePerTip);
+    Task DispenseAsync(double volumePerTip, CancellationToken cancellationToken = default);
 
-    Task DropTipsAsync();
+    Task DropTipsAsync(CancellationToken cancellationToken = default);
 
-    Task PickupTipsAsync();
+    Task PickupTipsAsync(CancellationToken cancellationToken = default);
 }

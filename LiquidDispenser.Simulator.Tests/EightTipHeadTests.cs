@@ -24,6 +24,20 @@ public class EightTipHeadTests
     }
 
     [TestMethod]
+    public async Task Aspirate_WithCancellation_ThrowsOperationCanceledException()
+    {
+        // Arrange
+        var head = new EightTipHead();
+        using var cts = new CancellationTokenSource();
+        await head.PickupTipsAsync();
+        cts.Cancel();
+
+        // Act & Assert
+        await Assert.ThrowsExactlyAsync<TaskCanceledException>(
+            () => head.AspirateAsync(10, cts.Token));
+    }
+
+    [TestMethod]
     public async Task Aspirate_WithNoTips_ThrowsInvalidOperationException()
     {
         // Arrange

@@ -22,20 +22,24 @@ public class XyzStage : IStage<Axis>
         _ => throw new ArgumentException($"Invalid axis: {axis}", nameof(axis))
     };
 
-    public async Task HomeAsync()
+    public async Task HomeAsync(CancellationToken cancellationToken = default)
     {
         foreach (IMotor motor in Motors)
         {
-            await motor.HomeAsync();
+            await motor.HomeAsync(cancellationToken);
         }
     }
 
-    public async Task MoveToAsync(Dictionary<Axis, double> positions, double speed, bool isRelative)
+    public async Task MoveToAsync(
+        Dictionary<Axis, double> positions,
+        double speed,
+        bool isRelative,
+        CancellationToken cancellationToken = default)
     {
         foreach (var (axis, position) in positions)
         {
             var motor = GetMotor(axis);
-            await motor.MoveToAsync(position, speed, isRelative);
+            await motor.MoveToAsync(position, speed, isRelative, cancellationToken);
         }
     }
 }

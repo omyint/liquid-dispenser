@@ -12,6 +12,8 @@ public class Instrument
         Head = new EightTipHead();
     }
 
+    public event EventHandler? StateChanged;
+
     public double CurrentX => Stage.GetMotor(Axis.X).CurrentPosition;
 
     public double CurrentY => Stage.GetMotor(Axis.Y).CurrentPosition;
@@ -22,7 +24,7 @@ public class Instrument
 
     public IStage<Axis> Stage { get; }
 
-    public async Task ExecuteTransferAsync(TransferJob job)
+    public async Task ExecuteTransferAsync(TransferJob job, CancellationToken cancellationToken = default)
     {
         // Calculate the physical Cartesian coordinate of the FIRST tip (Tip 0)
         var firstSourceWell = job.SourceLabware.Wells[job.SourceRowStart, job.SourceColumnIndex];
@@ -36,15 +38,15 @@ public class Instrument
             job.SourceRowStart);
 
 
-        await MoveToAsync(sourceX, sourceY, 50, 200);
-        await MoveToAsync(sourceX, sourceY, 10, 50);
+        await MoveToAsync(sourceX, sourceY, 50, 200, cancellationToken);
+        await MoveToAsync(sourceX, sourceY, 10, 50, cancellationToken);
 
         if (!Head.HasTips)
-            await Head.PickupTipsAsync();
+            await Head.PickupTipsAsync(cancellationToken);
 
         ValidateTipAlignment(sourceX, sourceY, "Aspirate");
 
-        await Head.AspirateAsync(job.Volume);
+        await Head.AspirateAsync(job.Volume, cancellationToken);
 
         // Calculate which generic rows align physically with the 8 tips
         for (int i = 0; i < Head.TipCount; i++)
@@ -67,7 +69,7 @@ public class Instrument
             }
         }
 
-        await MoveToAsync(sourceX, sourceY, 50, 100);
+        await MoveToAsync(sourceX, sourceY, 50, 100, cancellationToken);
 
         // Move to Dest
         var firstDestCell = job.DestinationLabware.Wells[job.DestRowStart, job.DestColumn];
@@ -80,12 +82,12 @@ public class Instrument
             pitchY: job.DestinationLabware.PitchY,
             row: job.DestRowStart);
 
-        await MoveToAsync(destX, destY, 50, 200);
-        await MoveToAsync(destX, destY, 5, 50);
+        await MoveToAsync(destX, destY, 50, 200, cancellationToken);
+        await MoveToAsync(destX, destY, 5, 50, cancellationToken);
 
         ValidateTipAlignment(destX, destY, "Dispense");
 
-        await Head.DispenseAsync(job.Volume);
+        await Head.DispenseAsync(job.Volume, cancellationToken);
 
         for (int i = 0; i < Head.TipCount; i++)
         {
@@ -124,20 +126,32 @@ public class Instrument
             }
         }
 
-        await MoveToAsync(destX, destY, 50, 100);
+        await MoveToAsync(destX, destY, 50, 100, cancellationToken);
     }
 
-    public async Task InitializeAsync()
+    public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {
-        await Stage.HomeAsync();
+        await Stage.HomeAsync(cancellationToken);
+        OnStateChanged();
     }
 
 
     //easy to use method to move XYZ
-    private async Task MoveToAsync(double x, double y, double z, double speed)
+    private async Task MoveToAsync(
+        double x,
+        double y,
+        double z,
+        double speed,
+        CancellationToken cancellationToken = default)
     {
         var movments = new Dictionary<Axis, double> { { Axis.X, x }, { Axis.Y, y }, { Axis.Z, z } };
-        await Stage.MoveToAsync(movments, speed, isRelative: false);
+        await Stage.MoveToAsync(movments, speed, isRelative: false, cancellationToken);
+        OnStateChanged();
+    }
+
+    private void OnStateChanged()
+    {
+        StateChanged?.Invoke(this, EventArgs.Empty);
     }
 
     private void ValidateTipAlignment(double targetX, double targetY, string operationName)

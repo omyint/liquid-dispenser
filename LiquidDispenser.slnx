@@ -2,6 +2,7 @@
   <Folder Name="/Solution Items/">
     <File Path="README.md" />
   </Folder>
+  <Project Path="LiquidDispenser.App/LiquidDispenser.App.csproj" />
   <Project Path="LiquidDispenser.Core/LiquidDispenser.Core.csproj" Id="a71a30ac-33da-4e11-bab7-f41a753fd4e9" />
   <Project Path="LiquidDispenser.Simulator.Tests/LiquidDispenser.Simulator.Tests.csproj" />
   <Project Path="LiquidDispenser.Simulator/LiquidDispenser.Simulator.csproj" />

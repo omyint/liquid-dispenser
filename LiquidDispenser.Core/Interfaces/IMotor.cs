@@ -6,8 +6,8 @@ namespace LiquidDispenser.Core.Interfaces
 
         string Name { get; }
 
-        Task HomeAsync();
+        Task HomeAsync(CancellationToken cancellationToken = default);
 
-        Task MoveToAsync(double position, double speed, bool isRelative);
+        Task MoveToAsync(double position, double speed, bool isRelative, CancellationToken cancellationToken = default);
     }
 }
