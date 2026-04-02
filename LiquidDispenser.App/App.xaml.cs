@@ -1,6 +1,7 @@
 ﻿using LiquidDispenser.Simulator;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using System.Net.Http;
 using System.Windows;
 
 
@@ -18,6 +19,9 @@ public partial class App : Application
                 {
                     // Register Simulator Core logic as Singleton so its state persists 
                     services.AddSingleton<Instrument>();
+
+                    // Register HttpClient for cloud polling
+                    services.AddSingleton(new HttpClient { BaseAddress = new Uri("http://localhost:5000") });
 
                     // Register ViewModels
                     services.AddTransient<LiquidDispenser.App.ViewModels.MainViewModel>();

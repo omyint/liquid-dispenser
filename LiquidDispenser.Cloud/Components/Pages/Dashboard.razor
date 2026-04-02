@@ -1,0 +1,234 @@
+@page "/"
+@using LiquidDispenser.Core
+@using LiquidDispenser.Core.Data
+@inject CloudDbContext Db
+@implements IDisposable
+
+
+
+<PageTitle>Dispenser Dashboard</PageTitle>
+
+<div class="dashboard">
+
+	<!-- Status Bar -->
+	<div class="status-bar">
+		<span class="status-dot @(IsLive ? "live" : "idle")"></span>
+		<span>@(IsLive ? "Instrument Live" : "Waiting for Instrument...")</span>
+		<span class="ml-auto timestamp">Last update: @LastUpdated</span>
+	</div>
+
+	<!-- Stats Row -->
+	<div class="stat-row">
+		<div class="stat-card">
+			<div class="stat-label">Telemetry Events</div>
+			<div class="stat-value cyan">@TelemetryCount</div>
+		</div>
+		<div class="stat-card">
+			<div class="stat-label">Jobs in Queue</div>
+			<div class="stat-value yellow">@PendingCount</div>
+		</div>
+		<div class="stat-card">
+			<div class="stat-label">Head Position X</div>
+			<div class="stat-value red">@(Latest?.X.ToString("F1") ?? "—")</div>
+		</div>
+		<div class="stat-card">
+			<div class="stat-label">Head Position Y</div>
+			<div class="stat-value teal">@(Latest?.Y.ToString("F1") ?? "—")</div>
+		</div>
+		<div class="stat-card">
+			<div class="stat-label">Head Position Z</div>
+			<div class="stat-value gold">@(Latest?.Z.ToString("F1") ?? "—")</div>
+		</div>
+	</div>
+
+	<!-- Main Grid -->
+	<div class="main-grid">
+
+		<!-- Telemetry Feed -->
+		<div class="card">
+			<div class="card-header">
+				<span class="card-icon">📡</span>
+				<span>Live Telemetry Stream</span>
+				<span class="badge">auto-refresh 2s</span>
+			</div>
+			<div class="card-body telemetry-table-wrap">
+				<table class="data-table">
+					<thead>
+						<tr>
+							<th>#</th>
+							<th>X</th>
+							<th>Y</th>
+							<th>Z</th>
+							<th>Status</th>
+							<th>Time (UTC)</th>
+						</tr>
+					</thead>
+					<tbody>
+						@foreach (var t in TelemetryHistory)
+						{
+							<tr class="@(t.Id == Latest?.Id ? "row-highlight" : "")">
+								<td class="dim">@t.Id</td>
+								<td class="red">@t.X.ToString("F1")</td>
+								<td class="teal">@t.Y.ToString("F1")</td>
+								<td class="gold">@t.Z.ToString("F1")</td>
+								<td><span class="tag">@t.Status</span></td>
+								<td class="dim">@t.Timestamp.ToString("HH:mm:ss")</td>
+							</tr>
+						}
+						@if (!TelemetryHistory.Any())
+						{
+							<tr><td colspan="6" class="empty-row">No telemetry yet — start the WPF app in Cloud Mode.</td></tr>
+						}
+					</tbody>
+				</table>
+			</div>
+		</div>
+
+		<!-- Right Panel: Submit Job + Queue -->
+		<div style="display:flex;flex-direction:column;gap:16px;">
+
+			<!-- Submit Job Form -->
+			<div class="card">
+				<div class="card-header">
+					<span class="card-icon">➕</span>
+					<span>Submit New Job</span>
+				</div>
+				<div class="card-body">
+					<div class="form-grid">
+						<div class="form-field">
+							<label>Source Row <span class="hint">(0–15)</span></label>
+							<input type="number" min="0" max="15" @bind="NewJob.SourceRowStart" />
+						</div>
+						<div class="form-field">
+							<label>Source Col <span class="hint">(0–23)</span></label>
+							<input type="number" min="0" max="23" @bind="NewJob.SourceColumnIndex" />
+						</div>
+						<div class="form-field">
+							<label>Dest Row <span class="hint">(0–63)</span></label>
+							<input type="number" min="0" max="63" @bind="NewJob.DestRowStart" />
+						</div>
+						<div class="form-field">
+							<label>Dest Col <span class="hint">(0–63)</span></label>
+							<input type="number" min="0" max="63" @bind="NewJob.DestColumn" />
+						</div>
+						<div class="form-field form-field-full">
+							<label>Volume (µL)</label>
+							<input type="number" min="0" step="0.5" @bind="NewJob.Volume" />
+						</div>
+					</div>
+
+					@if (!string.IsNullOrEmpty(SubmitMessage))
+					{
+						<div class="submit-msg @SubmitMsgClass">@SubmitMessage</div>
+					}
+
+					<button class="submit-btn" @onclick="SubmitJobAsync" disabled="@IsSubmitting">
+						@(IsSubmitting ? "Adding..." : "Add to Queue")
+					</button>
+				</div>
+			</div>
+
+			<!-- Pending Jobs -->
+			<div class="card" style="flex:1;">
+				<div class="card-header">
+					<span class="card-icon">🗂</span>
+					<span>Pending Job Queue</span>
+					<span class="badge">@PendingCount queued</span>
+				</div>
+				<div class="card-body">
+					@foreach (var j in PendingJobs)
+					{
+						<div class="job-card">
+							<div class="job-id">Job #@j.JobId</div>
+							<div class="job-detail">Src Row <b>@j.SourceRowStart</b> · Col <b>@j.SourceColumnIndex</b></div>
+							<div class="job-detail">Dst Row <b>@j.DestRowStart</b> · Col <b>@j.DestColumn</b></div>
+							<div class="job-vol">@j.Volume µL</div>
+						</div>
+					}
+					@if (!PendingJobs.Any())
+					{
+						<p class="empty-row">Queue is empty — all jobs dispatched.</p>
+					}
+				</div>
+			</div>
+		</div>
+
+	</div>
+</div>
+
+@code {
+	private System.Threading.Timer? _timer;
+	private TelemetryPayload? Latest;
+	private List<TelemetryPayload> TelemetryHistory = new();
+	private List<JobRequestDto> PendingJobs = new();
+	private int TelemetryCount = 0;
+	private int PendingCount = 0;
+	private bool IsLive = false;
+	private string LastUpdated = "Never";
+
+	// Form state
+	private JobRequestDto NewJob = new() { Volume = 10.0 };
+	private bool IsSubmitting = false;
+	private string SubmitMessage = string.Empty;
+	private string SubmitMsgClass = string.Empty;
+
+	protected override async Task OnInitializedAsync()
+	{
+		await RefreshAsync();
+		_timer = new System.Threading.Timer(async _ =>
+		{
+			if (IsSubmitting)
+				return;
+			await RefreshAsync();
+			await InvokeAsync(StateHasChanged);
+		}, null, 200, 200);
+	}
+
+	private async Task SubmitJobAsync()
+	{
+		IsSubmitting = true;
+		SubmitMessage = string.Empty;
+
+		try
+		{
+			Db.PendingJobs.Add(NewJob);
+			await Db.SaveChangesAsync();
+
+			SubmitMessage = $"Job #{NewJob.JobId} added to queue.";
+			SubmitMsgClass = "msg-success";
+
+			// Reset form, keep volume
+			double vol = NewJob.Volume;
+			NewJob = new JobRequestDto { Volume = vol };
+
+			await RefreshAsync();
+		}
+		catch (Exception ex)
+		{
+			SubmitMessage = $"Error: {ex.Message}";
+			SubmitMsgClass = "msg-error";
+		}
+		finally
+		{
+			IsSubmitting = false;
+		}
+	}
+
+	private async Task RefreshAsync()
+	{
+		TelemetryHistory = await Db.TelemetryLogs
+			.OrderByDescending(t => t.Id)
+			.Take(25)
+			.ToListAsync();
+
+		Latest = TelemetryHistory.FirstOrDefault();
+		TelemetryCount = await Db.TelemetryLogs.CountAsync();
+		PendingJobs = await Db.PendingJobs.ToListAsync();
+		PendingCount = PendingJobs.Count;
+
+		IsLive = Latest != null && (DateTime.UtcNow - Latest.Timestamp).TotalSeconds < 30;
+		LastUpdated = DateTime.UtcNow.ToString("HH:mm:ss");
+	}
+
+	public void Dispose() => _timer?.Dispose();
+}

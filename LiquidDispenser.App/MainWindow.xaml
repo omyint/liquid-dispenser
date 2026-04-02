@@ -107,6 +107,9 @@
                     <Button Content="▶ Start"
                             Command="{Binding StartSimulationCommand}"
                             Margin="0,0,10,0" />
+                    <Button Content="Start Cloud Jobs"
+                            Command="{Binding StartCloudModeCommand}"
+                            Margin="0,0,10,0" />
                     <Button Content="⏹ Stop"
                             Command="{Binding StopSimulationCommand}"
                             Margin="0,0,10,0" />

@@ -1,0 +1,6 @@
+@Dispenser.Cloud_HostAddress = http://localhost:5000
+
+GET {{Dispenser.Cloud_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
